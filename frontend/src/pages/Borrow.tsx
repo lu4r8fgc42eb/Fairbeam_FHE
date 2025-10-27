@@ -217,6 +217,7 @@ const Borrow = () => {
       }
 
       // Initialize FHE and encrypt loan amount
+      // Note: Encrypt for LoanManager since that's where FHE.fromExternal is called
       const encrypted = await encryptUint64(
         parseEther(loanAmount),
         CONTRACT_ADDRESSES.LoanManager,

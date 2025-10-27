@@ -20,11 +20,23 @@ async function main() {
     await tx.wait();
     console.log("✅ FHELendingV2 authorized in CollateralManager\n");
 
+    // Authorize LoanManager in CollateralManager
+    console.log("→ Authorizing LoanManager in CollateralManager...");
+    tx = await CollateralManager.setAuthorization(loanManagerAddress, true);
+    await tx.wait();
+    console.log("✅ LoanManager authorized in CollateralManager\n");
+
     // Authorize FHELendingV2 in CreditScoring
     console.log("→ Authorizing FHELendingV2 in CreditScoring...");
     tx = await CreditScoring.setAuthorization(fheLendingAddress, true);
     await tx.wait();
     console.log("✅ FHELendingV2 authorized in CreditScoring\n");
+
+    // Authorize LoanManager in CreditScoring
+    console.log("→ Authorizing LoanManager in CreditScoring...");
+    tx = await CreditScoring.setAuthorization(loanManagerAddress, true);
+    await tx.wait();
+    console.log("✅ LoanManager authorized in CreditScoring\n");
 
     // Authorize FHELendingV2 in LoanManager
     console.log("→ Authorizing FHELendingV2 in LoanManager...");
