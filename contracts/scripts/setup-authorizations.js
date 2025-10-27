@@ -3,10 +3,10 @@ const hre = require("hardhat");
 async function main() {
   console.log("\n🔐 Setting up contract authorizations...\n");
 
-  const fheLendingAddress = "0xAB09E3AF93Cbe8C2a62128f8f437236c87F8f869";
-  const collateralManagerAddress = "0xfbC6E332646E9164D568900c2Fbf7bf61DaEB5bc";
-  const creditScoringAddress = "0xAe13671Acbc8A1598a51d3c5986990E182021f22";
-  const loanManagerAddress = "0x5F50dE4ee610deB2a8513155F1eca7E5C53d7C35";
+  const fheLendingAddress = "0xC84f448b99f3Ee1DB5087A8144C75666796D6f5C";
+  const collateralManagerAddress = "0xEd740d737347a7e68fd9ca71DF1dC686555414bF";
+  const creditScoringAddress = "0x8F1Ba4183289d913f61597C159cE04B6A34083Ad";
+  const loanManagerAddress = "0x92347FAA744441cd305c8486C9e0371De9cb3272";
 
   // Get contract instances
   const CollateralManager = await hre.ethers.getContractAt("CollateralManager", collateralManagerAddress);

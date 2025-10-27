@@ -84,6 +84,13 @@ const Borrow = () => {
           });
           setRepayAmount('');
           break;
+        case 'loan':
+          toast({
+            title: 'Loan Request Submitted',
+            description: `Request for ${loanAmount} ETH encrypted and confirmed on-chain. Check back for approval status.`,
+          });
+          setLoanAmount('');
+          break;
       }
       setIsProcessing(false);
       setTxHash(undefined);
@@ -202,6 +209,8 @@ const Borrow = () => {
 
     try {
       setIsProcessing(true);
+      setTxHash(undefined);
+      setTxType('loan');
 
       if (!address || !walletClient) {
         throw new Error('Wallet not connected or provider unavailable');
@@ -216,23 +225,21 @@ const Borrow = () => {
       );
 
       // Submit loan request
-      await requestLoan(encrypted.handle, encrypted.proof);
+      const hash = await requestLoan(encrypted.handle, encrypted.proof);
+      setTxHash(hash);
 
       toast({
-        title: 'Loan Request Submitted',
-        description: `Request for ${loanAmount} ETH encrypted and submitted. Check back for approval status.`,
+        title: 'Transaction Submitted',
+        description: 'Waiting for confirmation...',
       });
-
-      setLoanAmount('');
-      setTimeout(() => refetchAll(), 2000);
     } catch (error: any) {
       toast({
         title: 'Request Failed',
         description: error.message || 'Failed to submit loan request',
         variant: 'destructive',
       });
-    } finally {
       setIsProcessing(false);
+      setTxType('');
     }
   };
 

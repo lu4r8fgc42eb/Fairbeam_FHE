@@ -115,7 +115,7 @@ export function CreditProfileDialog() {
       <DialogTrigger asChild>
         <Button variant="outline" className="border-primary/50">
           <Shield className="h-4 w-4 mr-2" />
-          Submit Credit Profile
+          {hasProfile ? 'Update Credit Profile' : 'Submit Credit Profile'}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[500px]">
