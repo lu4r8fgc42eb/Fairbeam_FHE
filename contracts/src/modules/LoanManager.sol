@@ -109,6 +109,54 @@ contract LoanManager is ILoanManager, SepoliaConfig, Ownable, ReentrancyGuard {
     }
 
     /**
+     * @notice Request loan on behalf of a user (authorized contracts only)
+     * @param borrower The user address requesting the loan
+     * @param amountHandle External encrypted uint64 handle
+     * @param proof ZK proof for encryption
+     * @return requestId Unique request identifier
+     */
+    function requestLoanFor(
+        address borrower,
+        externalEuint64 amountHandle,
+        bytes calldata proof
+    ) external onlyAuthorized nonReentrant returns (uint256 requestId) {
+        require(borrower != address(0), "Invalid borrower");
+        require(creditScoring.hasProfile(borrower), "No credit profile");
+
+        // Import encrypted amount
+        euint64 amount = FHE.fromExternal(amountHandle, proof);
+        FHE.allowThis(amount);
+
+        // Get encrypted risk score
+        euint16 riskScore = creditScoring.getRiskScore(borrower);
+
+        // Encrypted approval logic:
+        // Condition 1: riskScore <= MAX_RISK_SCORE (600)
+        ebool okRisk = FHE.le(riskScore, FHE.asEuint16(MAX_RISK_SCORE));
+
+        // Combined condition: risk check only (collateral checked in claimLoan)
+        euint8 approvalStatus = FHE.select(okRisk, FHE.asEuint8(1), FHE.asEuint8(0));
+        FHE.allowThis(approvalStatus);
+        FHE.allow(approvalStatus, borrower);
+        FHE.allow(amount, borrower);
+
+        // Store request
+        requestId = ++requestCounter;
+        loanRequests[borrower][requestId] = LoanRequest({
+            amountEnc: amount,
+            approvedEnc: approvalStatus,
+            createdAt: block.timestamp,
+            status: LoanStatus.Pending,
+            claimed: false
+        });
+
+        latestRequestId[borrower] = requestId;
+
+        emit LoanRequested(borrower, requestId, block.timestamp);
+        return requestId;
+    }
+
+    /**
      * @inheritdoc ILoanManager
      */
     function claimLoan(

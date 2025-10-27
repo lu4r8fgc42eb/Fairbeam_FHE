@@ -109,7 +109,7 @@ contract FHELendingV2 is SepoliaConfig, Ownable, ReentrancyGuard {
         externalEuint64 amountHandle,
         bytes calldata proof
     ) external nonReentrant returns (uint256 requestId) {
-        return loanManager.requestLoan(amountHandle, proof);
+        return loanManager.requestLoanFor(msg.sender, amountHandle, proof);
     }
 
     /**

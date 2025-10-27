@@ -39,6 +39,19 @@ interface ILoanManager {
     function requestLoan(externalEuint64 amountHandle, bytes calldata proof) external returns (uint256 requestId);
 
     /**
+     * @notice Request loan on behalf of a user (authorized contracts only)
+     * @param borrower The user address requesting the loan
+     * @param amountHandle External encrypted uint64 handle
+     * @param proof ZK proof for encryption
+     * @return requestId Unique request identifier
+     */
+    function requestLoanFor(
+        address borrower,
+        externalEuint64 amountHandle,
+        bytes calldata proof
+    ) external returns (uint256 requestId);
+
+    /**
      * @notice Claim approved loan by revealing plaintext amount
      * @param requestId Loan request ID
      * @param amountPlain Plaintext amount to claim
