@@ -35,6 +35,7 @@ contract LoanManager is ILoanManager, SepoliaConfig, Ownable, ReentrancyGuard {
     mapping(address => mapping(uint256 => LoanRequest)) private loanRequests;
     mapping(address => uint256) public latestRequestId;
     mapping(address => uint256) public outstandingDebt;
+    mapping(address => euint64) private outstandingDebtEnc;
 
     // Request counter
     uint256 private requestCounter;
@@ -185,6 +186,19 @@ contract LoanManager is ILoanManager, SepoliaConfig, Ownable, ReentrancyGuard {
         request.status = LoanStatus.Claimed;
         outstandingDebt[msg.sender] = newDebt;
 
+        // Update encrypted outstanding debt with the ciphertext supplied by the user
+        euint64 currentDebtEnc = outstandingDebtEnc[msg.sender];
+        euint64 updatedDebtEnc;
+        if (FHE.isInitialized(currentDebtEnc)) {
+            updatedDebtEnc = FHE.add(currentDebtEnc, request.amountEnc);
+        } else {
+            updatedDebtEnc = request.amountEnc;
+        }
+
+        outstandingDebtEnc[msg.sender] = updatedDebtEnc;
+        FHE.allowThis(updatedDebtEnc);
+        FHE.allow(updatedDebtEnc, msg.sender);
+
         emit LoanClaimed(msg.sender, requestId, amountPlain);
     }
 
@@ -197,10 +211,23 @@ contract LoanManager is ILoanManager, SepoliaConfig, Ownable, ReentrancyGuard {
         uint256 debt = outstandingDebt[borrower];
         require(debt > 0, "No debt");
 
-        if (amount >= debt) {
-            outstandingDebt[borrower] = 0;
+        uint256 applied = amount >= debt ? debt : amount;
+        uint256 newDebt = debt - applied;
+        outstandingDebt[borrower] = newDebt;
+
+        // Maintain encrypted debt snapshot to mirror plaintext tracking
+        euint64 currentDebtEnc = outstandingDebtEnc[borrower];
+        if (FHE.isInitialized(currentDebtEnc)) {
+            euint64 appliedEnc = FHE.asEuint64(uint64(applied));
+            euint64 updatedDebtEnc = FHE.sub(currentDebtEnc, appliedEnc);
+            outstandingDebtEnc[borrower] = updatedDebtEnc;
+            FHE.allowThis(updatedDebtEnc);
+            FHE.allow(updatedDebtEnc, borrower);
         } else {
-            outstandingDebt[borrower] = debt - amount;
+            // Initialize encrypted debt to zero when no prior ciphertext exists
+            outstandingDebtEnc[borrower] = FHE.asEuint64(uint64(newDebt));
+            FHE.allowThis(outstandingDebtEnc[borrower]);
+            FHE.allow(outstandingDebtEnc[borrower], borrower);
         }
     }
 
@@ -264,6 +291,15 @@ contract LoanManager is ILoanManager, SepoliaConfig, Ownable, ReentrancyGuard {
      */
     function getOutstandingDebt(address user) external view returns (uint256) {
         return outstandingDebt[user];
+    }
+
+    /**
+     * @notice Get encrypted outstanding debt for user
+     * @param user User address
+     * @return Encrypted outstanding debt amount
+     */
+    function getEncryptedOutstandingDebt(address user) external view returns (euint64) {
+        return outstandingDebtEnc[user];
     }
 
     /**

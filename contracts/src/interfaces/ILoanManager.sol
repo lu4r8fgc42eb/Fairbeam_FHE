@@ -111,4 +111,11 @@ interface ILoanManager {
      * @return Outstanding debt amount
      */
     function getOutstandingDebt(address user) external view returns (uint256);
+
+    /**
+     * @notice Get encrypted outstanding debt for user
+     * @param user User address
+     * @return Encrypted outstanding debt amount (euint64)
+     */
+    function getEncryptedOutstandingDebt(address user) external view returns (euint64);
 }
