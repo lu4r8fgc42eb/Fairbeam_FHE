@@ -1,7 +1,6 @@
-// Contract addresses from environment variables
-// Simplified version - uses VITE_FHELENDING_ADDRESS or falls back to VITE_FHELENDING_V2_ADDRESS
+// Contract addresses from environment variables (Simplified Version)
 export const CONTRACT_ADDRESSES = {
-  FHELending: (import.meta.env.VITE_FHELENDING_ADDRESS || import.meta.env.VITE_FHELENDING_V2_ADDRESS) as `0x${string}`,
+  FHELending: import.meta.env.VITE_FHELENDING_ADDRESS as `0x${string}`,
   CollateralManager: import.meta.env.VITE_COLLATERAL_MANAGER_ADDRESS as `0x${string}`,
   LiquidityPool: import.meta.env.VITE_LIQUIDITY_POOL_ADDRESS as `0x${string}`,
 } as const;
@@ -17,7 +16,7 @@ export const NETWORK_CONFIG = {
 // WalletConnect Project ID
 export const WALLETCONNECT_PROJECT_ID = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || '';
 
-// Lending parameters (Simplified)
+// Lending parameters
 export const LENDING_PARAMS = {
   COLLATERAL_RATIO: 200, // 200% collateralization (50% LTV)
   MIN_COLLATERAL: BigInt(1000000000000000), // 0.001 ETH minimum

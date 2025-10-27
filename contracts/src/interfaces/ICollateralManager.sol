@@ -33,6 +33,13 @@ interface ICollateralManager {
     function withdrawCollateral(uint256 amount) external;
 
     /**
+     * @notice Withdraw collateral on behalf of a user (authorized contracts only)
+     * @param user User address
+     * @param amount Amount to withdraw in wei
+     */
+    function withdrawFor(address user, uint256 amount) external;
+
+    /**
      * @notice Get user's collateral balance
      * @param user User address
      * @return Collateral amount in wei

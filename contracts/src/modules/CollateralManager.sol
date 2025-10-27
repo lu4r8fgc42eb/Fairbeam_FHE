@@ -73,6 +73,26 @@ contract CollateralManager is ICollateralManager, Ownable, ReentrancyGuard {
     }
 
     /**
+     * @notice Withdraw collateral on behalf of a user (authorized contracts only)
+     * @param user User address
+     * @param amount Amount to withdraw
+     */
+    function withdrawFor(address user, uint256 amount) external onlyAuthorized nonReentrant {
+        if (amount == 0) revert ZeroAmount();
+        require(user != address(0), "Invalid user");
+
+        uint256 balance = collateralBalances[user];
+        if (amount > balance) revert InsufficientCollateral();
+
+        collateralBalances[user] = balance - amount;
+
+        (bool success, ) = user.call{value: amount}("");
+        if (!success) revert WithdrawBlocked();
+
+        emit CollateralWithdrawn(user, amount);
+    }
+
+    /**
      * @inheritdoc ICollateralManager
      */
     function getCollateral(address user) external view override returns (uint256) {
