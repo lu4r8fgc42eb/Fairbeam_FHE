@@ -1,0 +1,24 @@
+{
+  "name": "fairbeam-tests",
+  "version": "1.0.0",
+  "description": "Unit tests for Fairbeam FHE Lending Platform",
+  "scripts": {
+    "test": "cd ../contracts && npx hardhat test ../tests/*.test.js",
+    "test:lending": "cd ../contracts && npx hardhat test ../tests/FHELending.test.js",
+    "test:encryption": "cd ../contracts && npx hardhat test ../tests/FHEEncryption.test.js",
+    "test:security": "cd ../contracts && npx hardhat test ../tests/SecurityTests.test.js",
+    "test:coverage": "cd ../contracts && npx hardhat coverage --testfiles '../tests/*.test.js'",
+    "test:gas": "cd ../contracts && npx hardhat test ../tests/*.test.js --gas-reporter"
+  },
+  "keywords": [
+    "fhe",
+    "lending",
+    "defi",
+    "zama",
+    "testing",
+    "hardhat",
+    "ethereum"
+  ],
+  "author": "Fairbeam Team",
+  "license": "MIT"
+}
