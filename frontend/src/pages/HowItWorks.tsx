@@ -78,27 +78,18 @@ const HowItWorks = () => {
           <h2 className="text-3xl font-bold mb-6 text-center text-gradient">
             Demo Video
           </h2>
-          <div className="aspect-video bg-gradient-to-br from-primary/10 to-purple-500/10 rounded-lg border border-primary/20 flex items-center justify-center">
-            <div className="text-center space-y-4">
-              <div className="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center mx-auto">
-                <svg
-                  className="h-10 w-10 text-primary"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M8 5v14l11-7z"/>
-                </svg>
-              </div>
-              <p className="text-muted-foreground">
-                Demo video will be added here
-              </p>
-              <p className="text-sm text-muted-foreground">
-                See FHE lending in action with a complete walkthrough
-              </p>
-            </div>
+          <div className="aspect-video rounded-lg overflow-hidden border border-primary/20">
+            <video
+              controls
+              className="w-full h-full"
+              poster="/video-poster.jpg"
+            >
+              <source src="/video.mp4" type="video/mp4" />
+              Your browser does not support the video tag.
+            </video>
           </div>
           <p className="text-sm text-muted-foreground text-center mt-4">
-            Video placeholder - You can add your video file here later
+            Watch a complete walkthrough of Fairbeam's FHE lending platform
           </p>
         </Card>
 
