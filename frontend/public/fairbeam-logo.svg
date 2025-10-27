@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="240" viewBox="0 0 240 240" fill="none">
+  <defs>
+    <linearGradient id="bgGradient" x1="36" y1="24" x2="204" y2="216" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0F172A"/>
+      <stop offset="1" stop-color="#1E293B"/>
+    </linearGradient>
+    <linearGradient id="beamGradient" x1="72" y1="48" x2="204" y2="180" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#22D3EE" stop-opacity="0.2"/>
+      <stop offset="1" stop-color="#60A5FA" stop-opacity="0.85"/>
+    </linearGradient>
+    <linearGradient id="glyphGradient" x1="84" y1="72" x2="168" y2="168" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#38BDF8"/>
+      <stop offset="1" stop-color="#2DD4BF"/>
+    </linearGradient>
+    <filter id="shadow" x="46" y="44" width="154" height="156" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse">
+      <feOffset dy="6" />
+      <feGaussianBlur stdDeviation="10" />
+      <feColorMatrix type="matrix" values="0 0 0 0 0.129 0 0 0 0 0.278 0 0 0 0 0.384 0 0 0 0.24 0" />
+      <feBlend in2="SourceGraphic" result="shadowed" />
+    </filter>
+  </defs>
+  <rect x="12" y="12" width="216" height="216" rx="48" fill="url(#bgGradient)"/>
+  <g filter="url(#shadow)">
+    <path d="M158 72H98a10 10 0 0 0-10 10v76a10 10 0 0 0 10 10h30c7.732 0 14-6.268 14-14s-6.268-14-14-14h-20V94h50c7.732 0 14-6.268 14-14s-6.268-8-14-8Z" fill="url(#glyphGradient)"/>
+  </g>
+  <path d="M80 68c0-6.627 5.373-12 12-12h52c6.627 0 12 5.373 12 12s-5.373 12-12 12H92c-6.627 0-12-5.373-12-12Z" fill="url(#glyphGradient)" opacity="0.85"/>
+  <path d="M66 158c0-8.837 7.163-16 16-16h54c8.837 0 16 7.163 16 16s-7.163 16-16 16H82c-8.837 0-16-7.163-16-16Z" fill="url(#glyphGradient)" opacity="0.65"/>
+  <path d="M74 80l100 100" stroke="url(#beamGradient)" stroke-width="28" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>
+</svg>

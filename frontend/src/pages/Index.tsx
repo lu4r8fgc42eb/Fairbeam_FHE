@@ -46,9 +46,9 @@ const Index = () => {
           </div>
           
           <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
-            Private Lending
+            Fairbeam Lending
             <br />
-            <span className="text-gradient animate-gradient">Without Compromise</span>
+            <span className="text-gradient animate-gradient">Privacy Without Compromise</span>
           </h1>
           
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-12">
@@ -80,7 +80,7 @@ const Index = () => {
       <section className="py-20 px-4">
         <div className="container mx-auto max-w-6xl">
           <h2 className="text-3xl md:text-4xl font-bold text-center mb-16">
-            Why Choose <span className="text-gradient">FHE Lending</span>?
+            Why Choose <span className="text-gradient">Fairbeam</span>?
           </h2>
           
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -143,7 +143,7 @@ const Index = () => {
       {/* Footer */}
       <footer className="border-t border-border/50 py-8 px-4">
         <div className="container mx-auto max-w-6xl text-center text-muted-foreground text-sm">
-          <p>© 2024 FHE Lending. All rights reserved.</p>
+          <p>© 2024 Fairbeam. All rights reserved.</p>
         </div>
       </footer>
     </div>

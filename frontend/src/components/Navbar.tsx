@@ -1,6 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { Shield, Lock } from "lucide-react";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
 
 const Navbar = () => {
   const location = useLocation();
@@ -9,6 +8,7 @@ const Navbar = () => {
     { name: "Dashboard", path: "/dashboard" },
     { name: "Supply", path: "/supply" },
     { name: "Borrow", path: "/borrow" },
+    { name: "How It Works", path: "/how-it-works" },
   ];
 
   return (
@@ -17,11 +17,12 @@ const Navbar = () => {
         <div className="flex h-20 items-center justify-between">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-3 group">
-            <div className="relative">
-              <Shield className="h-8 w-8 text-primary transition-transform group-hover:scale-110" />
-              <Lock className="absolute top-1 left-1 h-4 w-4 text-secondary animate-pulse-glow" />
-            </div>
-            <span className="text-2xl font-bold text-gradient">FHE Lending</span>
+            <img
+              src="/fairbeam-logo.svg"
+              alt="Fairbeam logo"
+              className="h-10 w-10 transition-transform group-hover:scale-105"
+            />
+            <span className="text-2xl font-bold text-gradient">Fairbeam</span>
           </Link>
 
           {/* Navigation */}
