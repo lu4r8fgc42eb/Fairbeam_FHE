@@ -1,7 +1,13 @@
 // Contract addresses from environment variables
-// Simplified version - uses VITE_FHELENDING_ADDRESS or falls back to VITE_FHELENDING_V2_ADDRESS
+export const CONTRACTS = {
+  FHELendingWithDecrypt: import.meta.env.VITE_FHELENDING_ADDRESS as `0x${string}`,
+  CollateralManager: import.meta.env.VITE_COLLATERAL_MANAGER_ADDRESS as `0x${string}`,
+  LiquidityPool: import.meta.env.VITE_LIQUIDITY_POOL_ADDRESS as `0x${string}`,
+} as const;
+
+// Legacy support (for backwards compatibility)
 export const CONTRACT_ADDRESSES = {
-  FHELending: (import.meta.env.VITE_FHELENDING_ADDRESS || import.meta.env.VITE_FHELENDING_V2_ADDRESS) as `0x${string}`,
+  FHELending: import.meta.env.VITE_FHELENDING_ADDRESS as `0x${string}`,
   CollateralManager: import.meta.env.VITE_COLLATERAL_MANAGER_ADDRESS as `0x${string}`,
   LiquidityPool: import.meta.env.VITE_LIQUIDITY_POOL_ADDRESS as `0x${string}`,
 } as const;

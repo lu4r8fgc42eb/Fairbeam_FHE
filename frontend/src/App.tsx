@@ -10,7 +10,7 @@ import { config } from './config/wagmi';
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import Supply from "./pages/Supply";
-import BorrowSimple from "./pages/BorrowSimple";
+import BorrowFHE from "./pages/BorrowFHE";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -31,7 +31,7 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/supply" element={<Supply />} />
-              <Route path="/borrow" element={<BorrowSimple />} />
+              <Route path="/borrow" element={<BorrowFHE />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

@@ -245,9 +245,22 @@ export const createPermission = async (
   const checksumContract = getAddress(contractAddress);
   const checksumUser = getAddress(userAddress);
 
-  // Generate EIP-712 permission signature
-  const permission = fhe.generatePermission(checksumContract, checksumUser);
-  return permission;
+  console.log('Creating EIP712 permission for contract:', checksumContract);
+
+  try {
+    // Use createEIP712 method for permission (Zama relayer SDK)
+    const eip712 = fhe.createEIP712(checksumContract, checksumUser);
+
+    // Get public key
+    const publicKey = fhe.getPublicKey(checksumContract);
+
+    console.log('EIP712 permission created:', { eip712, publicKey });
+
+    return { eip712, publicKey };
+  } catch (error) {
+    console.error('Permission generation failed:', error);
+    throw error;
+  }
 };
 
 /**
@@ -318,7 +331,17 @@ export const decryptUint32 = async (
 };
 
 /**
- * Decrypt euint64 value
+ * Decrypt euint64 value - for now return null to indicate manual decryption needed
+ *
+ * Note: Zama's FHE decryption in relayer SDK 0.2.0 is complex and requires:
+ * 1. Contract must call FHE.allow() to authorize user
+ * 2. User must have proper Gateway access
+ * 3. SDK version compatibility issues
+ *
+ * For production, consider:
+ * - Upgrading to latest fhEVM SDK
+ * - Using server-side decryption with proper Gateway setup
+ * - Implementing threshold decryption for better UX
  */
 export const decryptUint64 = async (
   handle: `0x${string}`,
@@ -326,14 +349,18 @@ export const decryptUint64 = async (
   userAddress: string,
   provider?: any
 ): Promise<bigint> => {
-  const fhe = await initializeFHE(provider);
-  const permission = await createPermission(contractAddress, userAddress, provider);
+  console.log('=== Decryption Debug Info ===');
+  console.log('Handle:', handle);
+  console.log('Handle type:', typeof handle);
+  console.log('Contract:', contractAddress);
+  console.log('User:', userAddress);
 
-  try {
-    const decrypted = await fhe.decrypt(handle, permission);
-    return BigInt(decrypted);
-  } catch (error) {
-    console.error('Decryption failed:', error);
-    throw new Error(`Failed to decrypt euint64: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
+  // For now, we'll display a message that the user should check the encrypted value
+  // and manually claim with the amount they know they requested
+
+  throw new Error(
+    'FHE decryption is currently not available due to SDK limitations. ' +
+    'Please use the plaintext amount you originally requested to claim funds. ' +
+    'For example, if you requested 0.01 ETH, enter 0.01 in the claim field.'
+  );
 };
