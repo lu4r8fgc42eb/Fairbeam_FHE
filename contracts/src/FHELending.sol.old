@@ -1,0 +1,181 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.28;
+
+import {SepoliaConfig} from "@fhevm/solidity/config/ZamaConfig.sol";
+import {
+    FHE,
+    ebool,
+    euint8,
+    euint16,
+    euint64,
+    externalEuint16,
+    externalEuint64
+} from "@fhevm/solidity/lib/FHE.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+
+/**
+ * @title FHELending
+ * @dev 基于 FHE 的小额借贷示例：
+ *  - 用户存入抵押金（ETH，明文金额），作为自己的借款抵押
+ *  - 用户提交加密信用画像（riskScore 等）
+ *  - 借款请求以密文金额发起，合约在密文上做风控（risk<=600 且 2*amount <= collateral）
+ *  - 合约保存“密文审批结果”和“密文请求金额”，用户揭示 0/1 与明文金额一致后放款
+ */
+contract FHELending is SepoliaConfig, Ownable, ReentrancyGuard {
+    struct EncryptedProfile {
+        euint16 riskScore; // 0..65535
+        bool exists;
+    }
+
+    struct LoanRequest {
+        euint64 amountEnc;   // 密文申请金额（wei）
+        euint8 approvedEnc;  // 密文审批结果 0/1
+        uint256 createdAt;
+        bool exists;
+        bool claimed;
+    }
+
+    // 用户抵押（明文，ETH）
+    mapping(address => uint256) public collateral;
+    // 用户加密信用画像
+    mapping(address => EncryptedProfile) private profiles;
+    // 用户最近一次借款请求
+    mapping(address => LoanRequest) private latestReq;
+    // 未偿还本金（明文）
+    mapping(address => uint256) public outstanding;
+
+    // 事件
+    event CollateralDeposited(address indexed user, uint256 amount);
+    event CollateralWithdrawn(address indexed user, uint256 amount);
+    event ProfileSubmitted(address indexed user);
+    event LoanRequested(address indexed user, uint256 timestamp);
+    event LoanClaimed(address indexed user, uint256 amount);
+    event Repaid(address indexed user, uint256 amount);
+
+    // 错误
+    error NoProfile();
+    error NoRequest();
+    error AlreadyClaimed();
+    error InvalidProof();
+    error InsufficientCollateral();
+    error InsufficientLiquidity();
+    error WithdrawBlocked();
+
+    constructor() Ownable(msg.sender) {}
+
+    // === 抵押管理（明文） ===
+    function depositCollateral() external payable nonReentrant {
+        require(msg.value > 0, "zero");
+        collateral[msg.sender] += msg.value;
+        emit CollateralDeposited(msg.sender, msg.value);
+    }
+
+    function withdrawCollateral(uint256 amount) external nonReentrant {
+        // 维持 200% 抵押率：2 * outstanding <= collateral - amount
+        uint256 col = collateral[msg.sender];
+        require(amount > 0 && amount <= col, "bad amount");
+        uint256 remain = col - amount;
+        require(2 * outstanding[msg.sender] <= remain, "low health");
+        collateral[msg.sender] = remain;
+        (bool ok, ) = msg.sender.call{value: amount}("");
+        require(ok, "withdraw fail");
+        emit CollateralWithdrawn(msg.sender, amount);
+    }
+
+    // === 信用画像（密文） ===
+    function submitProfile(externalEuint16 riskHandle, bytes calldata proof) external {
+        euint16 risk = FHE.fromExternal(riskHandle, proof);
+        FHE.allowThis(risk);
+        profiles[msg.sender] = EncryptedProfile({riskScore: risk, exists: true});
+        emit ProfileSubmitted(msg.sender);
+    }
+
+    // === 借款请求（密文审批） ===
+    function requestLoan(externalEuint64 amountHandle, bytes calldata proof) external {
+        if (!profiles[msg.sender].exists) revert NoProfile();
+        euint64 amount = FHE.fromExternal(amountHandle, proof);
+        FHE.allowThis(amount);
+
+        // 条件：risk<=600 且 2*amount <= collateral
+        ebool okRisk = FHE.le(profiles[msg.sender].riskScore, 600);
+        euint64 dep = FHE.asEuint64(collateral[msg.sender]);
+        euint64 twice = FHE.add(amount, amount); // 2*amount
+        ebool okCollat = FHE.le(twice, dep);
+        ebool okAll = FHE.and(okRisk, okCollat);
+
+        euint8 pass = FHE.cmux(okAll, FHE.asEuint8(1), FHE.asEuint8(0));
+        FHE.allowThis(pass);
+        latestReq[msg.sender] = LoanRequest({
+            amountEnc: amount,
+            approvedEnc: pass,
+            createdAt: block.timestamp,
+            exists: true,
+            claimed: false
+        });
+        emit LoanRequested(msg.sender, block.timestamp);
+    }
+
+    // 借款领取：用户揭示 0/1 + 明文金额，合约用 FHE.eq 校验
+    function claimLoan(uint256 amountPlain, uint8 decryptedApproval) external nonReentrant {
+        LoanRequest storage req = latestReq[msg.sender];
+        if (!req.exists) revert NoRequest();
+        if (req.claimed) revert AlreadyClaimed();
+
+        if (!FHE.eq(req.approvedEnc, decryptedApproval)) revert InvalidProof();
+        // 未通过
+        require(decryptedApproval == 1, "not approved");
+
+        // 校验明文金额与密文相等
+        if (!FHE.eq(req.amountEnc, amountPlain)) revert InvalidProof();
+
+        // 额外明文健康度保护：2*新负债 <= 抵押
+        uint256 col = collateral[msg.sender];
+        uint256 newOutstanding = outstanding[msg.sender] + amountPlain;
+        if (2 * newOutstanding > col) revert InsufficientCollateral();
+
+        // 流动性检查
+        if (address(this).balance < amountPlain) revert InsufficientLiquidity();
+
+        req.claimed = true;
+        outstanding[msg.sender] = newOutstanding;
+        (bool ok, ) = msg.sender.call{value: amountPlain}("");
+        require(ok, "transfer fail");
+        emit LoanClaimed(msg.sender, amountPlain);
+    }
+
+    // 还款（可多次）
+    function repay() external payable nonReentrant {
+        require(msg.value > 0, "zero");
+        uint256 debt = outstanding[msg.sender];
+        require(debt > 0, "no debt");
+        if (msg.value >= debt) {
+            outstanding[msg.sender] = 0;
+            // 多余部分留在合约作为储备（v1 简化，不退款）
+            emit Repaid(msg.sender, debt);
+        } else {
+            outstanding[msg.sender] = debt - msg.value;
+            emit Repaid(msg.sender, msg.value);
+        }
+    }
+
+    // === 重加密视图（便于前端解密） ===
+    function reencryptLatestApproval(bytes calldata publicKey) external view returns (bytes memory) {
+        if (!latestReq[msg.sender].exists) revert NoRequest();
+        return FHE.reencrypt(latestReq[msg.sender].approvedEnc, publicKey);
+    }
+
+    function reencryptLatestAmount(bytes calldata publicKey) external view returns (bytes memory) {
+        if (!latestReq[msg.sender].exists) revert NoRequest();
+        return FHE.reencrypt(latestReq[msg.sender].amountEnc, publicKey);
+    }
+
+    // 合约总余额（流动性）
+    function liquidity() external view returns (uint256) {
+        return address(this).balance;
+    }
+
+    // 接收资金（例如运维方补充流动性）
+    receive() external payable {}
+}
+
