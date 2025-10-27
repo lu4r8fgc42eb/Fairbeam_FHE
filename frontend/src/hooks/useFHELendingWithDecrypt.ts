@@ -3,7 +3,7 @@ import { parseEther, formatEther } from 'viem';
 import FHELendingWithDecryptABI from '@/contracts/FHELendingWithDecrypt.json';
 import { CONTRACTS } from '@/config/contracts';
 import { encryptUint64, decryptUint64 } from '@/lib/fhe';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export function useFHELendingWithDecrypt() {
   const { address } = useAccount();
@@ -159,46 +159,84 @@ export function useFHELendingWithDecrypt() {
 
   // ============ Read Functions ============
 
-  const { data: collateral } = useReadContract({
+  const { data: collateral, refetch: refetchCollateral } = useReadContract({
     address: CONTRACTS.FHELendingWithDecrypt,
     abi: FHELendingWithDecryptABI,
     functionName: 'getCollateral',
     args: address ? [address] : undefined,
+    query: {
+      refetchInterval: 3000, // Auto-refetch every 3 seconds
+    },
   });
 
-  const { data: outstandingDebt } = useReadContract({
+  const { data: outstandingDebt, refetch: refetchDebt } = useReadContract({
     address: CONTRACTS.FHELendingWithDecrypt,
     abi: FHELendingWithDecryptABI,
     functionName: 'getOutstandingDebt',
     args: address ? [address] : undefined,
+    query: {
+      refetchInterval: 3000,
+    },
   });
 
-  const { data: maxBorrowable } = useReadContract({
+  const { data: maxBorrowable, refetch: refetchMaxBorrowable } = useReadContract({
     address: CONTRACTS.FHELendingWithDecrypt,
     abi: FHELendingWithDecryptABI,
     functionName: 'getMaxBorrowable',
     args: address ? [address] : undefined,
+    query: {
+      refetchInterval: 3000,
+    },
   });
 
-  const { data: availableLiquidity } = useReadContract({
+  const { data: availableLiquidity, refetch: refetchLiquidity } = useReadContract({
     address: CONTRACTS.FHELendingWithDecrypt,
     abi: FHELendingWithDecryptABI,
     functionName: 'getAvailableLiquidity',
+    query: {
+      refetchInterval: 3000,
+    },
   });
 
-  const { data: hasActiveRequest } = useReadContract({
+  const { data: hasActiveRequest, refetch: refetchActiveRequest } = useReadContract({
     address: CONTRACTS.FHELendingWithDecrypt,
     abi: FHELendingWithDecryptABI,
     functionName: 'hasActiveRequest',
     args: address ? [address] : undefined,
+    query: {
+      refetchInterval: 3000,
+    },
   });
 
-  const { data: borrowRequest } = useReadContract({
+  const { data: borrowRequest, refetch: refetchBorrowRequest } = useReadContract({
     address: CONTRACTS.FHELendingWithDecrypt,
     abi: FHELendingWithDecryptABI,
     functionName: 'borrowRequests',
     args: address ? [address] : undefined,
+    query: {
+      refetchInterval: 3000,
+    },
   });
+
+  // Manual refetch all data
+  const refetchAll = () => {
+    refetchCollateral();
+    refetchDebt();
+    refetchMaxBorrowable();
+    refetchLiquidity();
+    refetchActiveRequest();
+    refetchBorrowRequest();
+  };
+
+  // Auto-refetch when transaction is confirmed
+  useEffect(() => {
+    if (isConfirmed) {
+      // Wait a bit for blockchain to update
+      setTimeout(() => {
+        refetchAll();
+      }, 1000);
+    }
+  }, [isConfirmed]);
 
   return {
     // Write functions
@@ -210,6 +248,9 @@ export function useFHELendingWithDecrypt() {
 
     // Decrypt function
     decryptBorrowAmount,
+
+    // Refetch function
+    refetchAll,
 
     // Transaction states
     txHash,
