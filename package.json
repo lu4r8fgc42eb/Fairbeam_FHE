@@ -1,0 +1,37 @@
+{
+  "name": "fairbeam",
+  "version": "1.0.0",
+  "description": "Fairbeam - FHE-based privacy-preserving lending platform",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy": "hardhat run scripts/deploy.js",
+    "deploy:sepolia": "hardhat run scripts/deploy.js --network sepolia",
+    "deploy:local": "hardhat run scripts/deploy.js --network localhost",
+    "deploy:private": "hardhat run scripts/deploy-private-lending.js --network sepolia",
+    "deploy:fhe": "hardhat run scripts/deploy-fhe-with-decrypt.js --network sepolia",
+    "clean": "hardhat clean"
+  },
+  "keywords": [
+    "fhe",
+    "lending",
+    "privacy",
+    "ethereum",
+    "smart-contracts",
+    "zama",
+    "defi"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@fhevm/hardhat-plugin": "^0.3.0-1",
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "dotenv": "^16.4.5",
+    "hardhat": "^2.26.0"
+  },
+  "dependencies": {
+    "@fhevm/solidity": "^0.9.1",
+    "@openzeppelin/contracts": "^5.4.0",
+    "ethers": "^6.15.0"
+  }
+}
