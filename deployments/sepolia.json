@@ -1,0 +1,12 @@
+{
+  "network": "sepolia",
+  "deployer": "0x31ac479ab9969EdCE0fEDD946E94180dCf7d36fd",
+  "timestamp": "2025-10-27T13:04:30.152Z",
+  "contracts": {
+    "CollateralManager": "0x352c8E07e81e192C91ee2879EBd9376fB9522ea7",
+    "CreditScoring": "0x1dbEa99317e409f5c79f4C243CBC7F964dc38ffe",
+    "LoanManager": "0x71A859C0Bd10a4171235d4e088F2596F3689b7B6",
+    "LiquidityPool": "0x0a816AE552524485bD9f676E95Ae899B2a6C408E",
+    "FHELendingV2": "0x69aaD7B8DA5402984130A4A22D8b271b8E4Ec04B"
+  }
+}

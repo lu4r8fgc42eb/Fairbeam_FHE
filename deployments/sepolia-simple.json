@@ -1,0 +1,10 @@
+{
+  "network": "sepolia",
+  "deployer": "0x31ac479ab9969EdCE0fEDD946E94180dCf7d36fd",
+  "timestamp": "2025-10-27T15:18:36.295Z",
+  "contracts": {
+    "CollateralManager": "0x5b0b40B1106542a8853db535e09719514D8fe4DE",
+    "LiquidityPool": "0x719626f27e436696a974fe5ea476c841Cdbe10f1",
+    "FHELendingSimple": "0xC39BdEBc9E0c69Ca0c459F9777bba01e1aFaFb37"
+  }
+}

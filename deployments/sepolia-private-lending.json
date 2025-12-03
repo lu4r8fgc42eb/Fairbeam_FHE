@@ -1,0 +1,9 @@
+{
+  "network": "sepolia",
+  "deployer": "0x31ac479ab9969EdCE0fEDD946E94180dCf7d36fd",
+  "timestamp": "2025-12-06T19:01:36.770Z",
+  "contracts": {
+    "ConfidentialETH": "0xDC13A2f7fED5d396Efe5ce86F3AC0eCb2CA46643",
+    "PrivateLendingPool": "0x1de445720AeFfCaf4ba0c055071AC891ef866133"
+  }
+}
