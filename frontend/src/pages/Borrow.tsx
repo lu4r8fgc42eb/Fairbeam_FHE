@@ -1,117 +1,194 @@
 import { useState, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
-import { CreditProfileDialog } from '@/components/CreditProfileDialog';
 import { useToast } from '@/hooks/use-toast';
-import { useFHELending } from '@/hooks/useFHELending';
+import { useConfidentialETH } from '@/hooks/useConfidentialETH';
+import { usePrivateLendingPool } from '@/hooks/usePrivateLendingPool';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { AlertCircle, TrendingUp, Shield, Wallet } from 'lucide-react';
-import { encryptUint64, decryptUint8, decryptUint64 } from '@/lib/fhe';
-import { CONTRACT_ADDRESSES } from '@/config/contracts';
-import { parseEther, formatEther } from 'viem';
+import { ToastAction } from '@/components/ui/toast';
+import { AlertCircle, TrendingUp, Shield, Wallet, ExternalLink, Lock, Unlock } from 'lucide-react';
+import { CONTRACTS, NETWORK_CONFIG } from '@/config/contracts';
+import { getExplorerTxUrl, formatTxHash } from '@/lib/utils';
+import { formatEther } from 'viem';
 import { useAccount, useWalletClient, useWaitForTransactionReceipt } from 'wagmi';
+import { Link } from 'react-router-dom';
 
 const Borrow = () => {
   const { toast } = useToast();
   const { address } = useAccount();
   const { data: walletClient } = useWalletClient();
 
+  // cETH hook
   const {
-    collateral,
-    debt,
-    hasProfile,
-    latestRequestId,
+    hasBalance: hasCethBalance,
+    isPoolApproved,
+    decryptBalance,
+    refetchAll: refetchCeth,
+  } = useConfidentialETH();
+
+  // Private Lending Pool hook
+  const {
+    hasCollateral,
+    hasDebt,
+    collateralRatio,
     isPending,
     isConfirming,
-    requestLoan,
-    claimLoan,
     depositCollateral,
     withdrawCollateral,
+    borrow,
     repay,
-    refetchAll,
-    getApprovalHandle,
-    getLoanAmountHandle,
-  } = useFHELending();
+    decryptCollateral,
+    decryptDebt,
+    refetchAll: refetchLending,
+  } = usePrivateLendingPool();
 
   const [collateralAmount, setCollateralAmount] = useState('');
-  const [loanAmount, setLoanAmount] = useState('');
+  const [borrowAmount, setBorrowAmount] = useState('');
   const [repayAmount, setRepayAmount] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [txHash, setTxHash] = useState<`0x${string}` | undefined>();
   const [txType, setTxType] = useState<string>('');
+
+  // Decrypted values
+  const [decryptedCethBalance, setDecryptedCethBalance] = useState<string | null>(null);
+  const [decryptedCollateral, setDecryptedCollateral] = useState<string | null>(null);
+  const [decryptedDebt, setDecryptedDebt] = useState<string | null>(null);
+  const [isDecrypting, setIsDecrypting] = useState(false);
 
   // Wait for transaction receipt
   const { isLoading: isWaitingForReceipt, isSuccess: isTxSuccess, isError: isTxError } = useWaitForTransactionReceipt({
     hash: txHash,
   });
 
-  // Calculate borrowing power (50% of collateral for 200% collateralization)
-  const availableToBorrow = parseFloat(collateral) * 0.5 - parseFloat(debt);
-  const borrowLimitUsed = parseFloat(collateral) > 0
-    ? (parseFloat(debt) / (parseFloat(collateral) * 0.5)) * 100
-    : 0;
-
   useEffect(() => {
     if (address) {
-      refetchAll();
+      refetchCeth();
+      refetchLending();
     }
   }, [address]);
 
+  // Helper to create explorer action
+  const createExplorerAction = (hash: string) => (
+    <ToastAction
+      altText="View on Explorer"
+      onClick={() => window.open(getExplorerTxUrl(hash, NETWORK_CONFIG.chainId), '_blank')}
+    >
+      <ExternalLink className="h-3 w-3 mr-1" />
+      View
+    </ToastAction>
+  );
+
   // Handle transaction success
   useEffect(() => {
-    if (isTxSuccess && isProcessing) {
+    if (isTxSuccess && isProcessing && txHash) {
+      const explorerAction = createExplorerAction(txHash);
       switch (txType) {
         case 'deposit':
           toast({
             title: 'Collateral Deposited',
-            description: `Successfully deposited ${collateralAmount} ETH on-chain`,
+            description: `Successfully deposited cETH as collateral. Tx: ${formatTxHash(txHash)}`,
+            action: explorerAction,
           });
           setCollateralAmount('');
+          setDecryptedCollateral(null);
+          setDecryptedCethBalance(null);
           break;
         case 'withdraw':
           toast({
             title: 'Collateral Withdrawn',
-            description: `Successfully withdrawn ${collateralAmount} ETH`,
+            description: `Successfully withdrawn collateral. Tx: ${formatTxHash(txHash)}`,
+            action: explorerAction,
           });
           setCollateralAmount('');
+          setDecryptedCollateral(null);
+          setDecryptedCethBalance(null);
+          break;
+        case 'borrow':
+          toast({
+            title: 'Borrowed Successfully',
+            description: `Loan received as encrypted cETH. Tx: ${formatTxHash(txHash)}`,
+            action: explorerAction,
+          });
+          setBorrowAmount('');
+          setDecryptedDebt(null);
+          setDecryptedCethBalance(null);
           break;
         case 'repay':
           toast({
             title: 'Loan Repaid',
-            description: `Successfully repaid ${repayAmount} ETH`,
+            description: `Successfully repaid loan. Tx: ${formatTxHash(txHash)}`,
+            action: explorerAction,
           });
           setRepayAmount('');
-          break;
-        case 'loan':
-          toast({
-            title: 'Loan Request Submitted',
-            description: `Request for ${loanAmount} ETH encrypted and confirmed on-chain. Check back for approval status.`,
-          });
-          setLoanAmount('');
+          setDecryptedDebt(null);
+          setDecryptedCethBalance(null);
           break;
       }
       setIsProcessing(false);
       setTxHash(undefined);
       setTxType('');
-      refetchAll();
+      refetchCeth();
+      refetchLending();
     }
   }, [isTxSuccess, isProcessing]);
 
   // Handle transaction error
   useEffect(() => {
-    if (isTxError && isProcessing) {
+    if (isTxError && isProcessing && txHash) {
       toast({
         title: 'Transaction Failed',
-        description: 'The transaction was reverted on-chain',
+        description: `Transaction reverted on-chain. Tx: ${formatTxHash(txHash)}`,
         variant: 'destructive',
+        action: createExplorerAction(txHash),
       });
       setIsProcessing(false);
       setTxHash(undefined);
       setTxType('');
     }
   }, [isTxError, isProcessing]);
+
+  const handleDecryptAll = async () => {
+    try {
+      setIsDecrypting(true);
+      toast({
+        title: 'Decrypting Balances...',
+        description: 'Please sign the messages to decrypt your balances',
+      });
+
+      // Decrypt cETH balance
+      if (hasCethBalance) {
+        const balance = await decryptBalance(walletClient);
+        setDecryptedCethBalance(formatEther(balance));
+      }
+
+      // Decrypt collateral
+      if (hasCollateral) {
+        const collateral = await decryptCollateral(walletClient);
+        setDecryptedCollateral(formatEther(collateral));
+      }
+
+      // Decrypt debt
+      if (hasDebt) {
+        const debt = await decryptDebt(walletClient);
+        setDecryptedDebt(formatEther(debt));
+      }
+
+      toast({
+        title: 'Decryption Complete',
+        description: 'All balances have been decrypted',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Decryption Failed',
+        description: error.message || 'Failed to decrypt balances',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDecrypting(false);
+    }
+  };
 
   const handleDepositCollateral = async () => {
     if (!collateralAmount || parseFloat(collateralAmount) <= 0) {
@@ -123,17 +200,31 @@ const Borrow = () => {
       return;
     }
 
+    if (!isPoolApproved) {
+      toast({
+        title: 'Approval Required',
+        description: 'Please approve the lending pool first on the Wrap page',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     try {
       setIsProcessing(true);
-      setTxHash(undefined);
       setTxType('deposit');
 
-      const hash = await depositCollateral(collateralAmount);
+      toast({
+        title: 'Encrypting Amount...',
+        description: 'Please sign the message to encrypt your deposit amount',
+      });
+
+      const hash = await depositCollateral(collateralAmount, walletClient);
       setTxHash(hash);
 
       toast({
         title: 'Transaction Submitted',
-        description: 'Waiting for confirmation...',
+        description: `Depositing encrypted collateral...`,
+        action: createExplorerAction(hash),
       });
     } catch (error: any) {
       toast({
@@ -158,20 +249,25 @@ const Borrow = () => {
 
     try {
       setIsProcessing(true);
-      setTxHash(undefined);
       setTxType('withdraw');
 
-      const hash = await withdrawCollateral(collateralAmount);
+      toast({
+        title: 'Encrypting Amount...',
+        description: 'Please sign the message to encrypt your withdrawal amount',
+      });
+
+      const hash = await withdrawCollateral(collateralAmount, walletClient);
       setTxHash(hash);
 
       toast({
         title: 'Transaction Submitted',
-        description: 'Waiting for confirmation...',
+        description: `Withdrawing encrypted collateral...`,
+        action: createExplorerAction(hash),
       });
     } catch (error: any) {
       toast({
         title: 'Withdrawal Failed',
-        description: error.message || 'Failed to withdraw collateral. Check health factor.',
+        description: error.message || 'Failed to withdraw. Check collateral ratio.',
         variant: 'destructive',
       });
       setIsProcessing(false);
@@ -179,29 +275,20 @@ const Borrow = () => {
     }
   };
 
-  const handleRequestLoan = async () => {
-    if (!hasProfile) {
-      toast({
-        title: 'Credit Profile Required',
-        description: 'Please submit your credit profile first',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    if (!loanAmount || parseFloat(loanAmount) <= 0) {
+  const handleBorrow = async () => {
+    if (!borrowAmount || parseFloat(borrowAmount) <= 0) {
       toast({
         title: 'Invalid Amount',
-        description: 'Please enter a valid loan amount',
+        description: 'Please enter a valid borrow amount',
         variant: 'destructive',
       });
       return;
     }
 
-    if (parseFloat(loanAmount) > availableToBorrow) {
+    if (!hasCollateral) {
       toast({
-        title: 'Insufficient Collateral',
-        description: `Maximum borrowable: ${availableToBorrow.toFixed(4)} ETH`,
+        title: 'No Collateral',
+        description: 'Please deposit collateral first',
         variant: 'destructive',
       });
       return;
@@ -209,133 +296,29 @@ const Borrow = () => {
 
     try {
       setIsProcessing(true);
-      setTxHash(undefined);
-      setTxType('loan');
+      setTxType('borrow');
 
-      if (!address || !walletClient) {
-        throw new Error('Wallet not connected or provider unavailable');
-      }
+      toast({
+        title: 'Encrypting Amount...',
+        description: 'Please sign the message to encrypt your borrow amount',
+      });
 
-      // Initialize FHE and encrypt loan amount
-      // Note: Encrypt for LoanManager since that's where FHE.fromExternal is called
-      const encrypted = await encryptUint64(
-        parseEther(loanAmount),
-        CONTRACT_ADDRESSES.LoanManager,
-        address,
-        walletClient
-      );
-
-      // Submit loan request
-      const hash = await requestLoan(encrypted.handle, encrypted.proof);
+      const hash = await borrow(borrowAmount, walletClient);
       setTxHash(hash);
 
       toast({
         title: 'Transaction Submitted',
-        description: 'Waiting for confirmation...',
+        description: `Borrowing encrypted amount...`,
+        action: createExplorerAction(hash),
       });
     } catch (error: any) {
       toast({
-        title: 'Request Failed',
-        description: error.message || 'Failed to submit loan request',
+        title: 'Borrow Failed',
+        description: error.message || 'Failed to borrow. Check collateral ratio.',
         variant: 'destructive',
       });
       setIsProcessing(false);
       setTxType('');
-    }
-  };
-
-  const handleClaimLoan = async () => {
-    if (!latestRequestId || latestRequestId === 0n) {
-      toast({
-        title: 'No Loan Request',
-        description: 'Please submit a loan request first',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    if (!address || !walletClient) {
-      toast({
-        title: 'Wallet Not Connected',
-        description: 'Please connect your wallet',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    try {
-      setIsProcessing(true);
-
-      toast({
-        title: 'Decrypting Approval...',
-        description: 'Fetching and decrypting your loan approval status',
-      });
-
-      // Step 1: Get encrypted approval handle from contract
-      const approvalHandle = await getApprovalHandle(BigInt(latestRequestId));
-      if (!approvalHandle) {
-        throw new Error('Failed to get approval status from contract');
-      }
-
-      // Step 2: Get encrypted loan amount handle from contract
-      const amountHandle = await getLoanAmountHandle(BigInt(latestRequestId));
-      if (!amountHandle) {
-        throw new Error('Failed to get loan amount from contract');
-      }
-
-      toast({
-        title: 'Decrypting Data...',
-        description: 'Decrypting approval status and loan amount',
-      });
-
-      // Step 3: Decrypt approval status (euint8: 0 or 1)
-      const decryptedApproval = await decryptUint8(
-        approvalHandle,
-        CONTRACT_ADDRESSES.LoanManager,
-        address,
-        walletClient
-      );
-
-      if (decryptedApproval !== 1) {
-        toast({
-          title: 'Loan Not Approved',
-          description: 'Your loan request was not approved. This may be due to insufficient collateral or high risk score.',
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      // Step 4: Decrypt loan amount (euint64)
-      const decryptedAmount = await decryptUint64(
-        amountHandle,
-        CONTRACT_ADDRESSES.LoanManager,
-        address,
-        walletClient
-      );
-
-      toast({
-        title: 'Processing Claim...',
-        description: `Claiming ${formatEther(decryptedAmount)} ETH`,
-      });
-
-      // Step 5: Claim loan with decrypted values
-      await claimLoan(BigInt(latestRequestId), decryptedAmount, decryptedApproval);
-
-      toast({
-        title: 'Loan Claimed Successfully',
-        description: `Successfully claimed ${formatEther(decryptedAmount)} ETH`,
-      });
-
-      setTimeout(() => refetchAll(), 2000);
-    } catch (error: any) {
-      console.error('Claim loan error:', error);
-      toast({
-        title: 'Claim Failed',
-        description: error.message || 'Failed to claim loan. Please check your approval status and try again.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsProcessing(false);
     }
   };
 
@@ -349,22 +332,36 @@ const Borrow = () => {
       return;
     }
 
+    if (!isPoolApproved) {
+      toast({
+        title: 'Approval Required',
+        description: 'Please approve the lending pool first on the Wrap page',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     try {
       setIsProcessing(true);
-      setTxHash(undefined);
       setTxType('repay');
 
-      const hash = await repay(repayAmount);
+      toast({
+        title: 'Encrypting Amount...',
+        description: 'Please sign the message to encrypt your repayment amount',
+      });
+
+      const hash = await repay(repayAmount, walletClient);
       setTxHash(hash);
 
       toast({
         title: 'Transaction Submitted',
-        description: 'Waiting for confirmation...',
+        description: `Repaying encrypted amount...`,
+        action: createExplorerAction(hash),
       });
     } catch (error: any) {
       toast({
         title: 'Repayment Failed',
-        description: error.message || 'Failed to process repayment',
+        description: error.message || 'Failed to repay loan',
         variant: 'destructive',
       });
       setIsProcessing(false);
@@ -397,49 +394,107 @@ const Borrow = () => {
         <div className="mb-8 flex justify-between items-center">
           <div>
             <h1 className="text-4xl font-bold mb-2">
-              <span className="text-gradient">Borrow Assets</span>
+              <span className="text-gradient">Private Lending</span>
             </h1>
             <p className="text-muted-foreground">
-              Request encrypted loans with collateral
+              Borrow and repay with fully encrypted amounts using cETH
             </p>
           </div>
-          <CreditProfileDialog />
+          <Button
+            onClick={handleDecryptAll}
+            disabled={isDecrypting || (!hasCethBalance && !hasCollateral && !hasDebt)}
+            variant="outline"
+          >
+            <Unlock className="h-4 w-4 mr-2" />
+            {isDecrypting ? 'Decrypting...' : 'Decrypt Balances'}
+          </Button>
         </div>
 
-        {/* Borrowing Power Card */}
-        <Card className="p-6 border-gradient card-glow mb-8">
-          <div className="grid md:grid-cols-4 gap-6">
-            <div>
-              <p className="text-sm text-muted-foreground mb-1">Your Collateral</p>
-              <p className="text-2xl font-bold text-foreground">{parseFloat(collateral).toFixed(4)} ETH</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground mb-1">Outstanding Debt</p>
-              <p className="text-2xl font-bold text-destructive">{parseFloat(debt).toFixed(4)} ETH</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground mb-1">Available to Borrow</p>
-              <p className="text-2xl font-bold text-primary">{availableToBorrow > 0 ? availableToBorrow.toFixed(4) : '0.0000'} ETH</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground mb-1">Borrow Limit Used</p>
-              <p className="text-2xl font-bold text-secondary">{borrowLimitUsed.toFixed(1)}%</p>
-            </div>
-          </div>
-        </Card>
-
-        {/* Warning Banner */}
-        {!hasProfile && (
-          <div className="mb-8 p-4 rounded-lg border border-secondary/30 bg-secondary/5 flex items-start gap-3">
+        {/* Warning if not approved */}
+        {!isPoolApproved && hasCethBalance && (
+          <div className="mb-6 p-4 rounded-lg border border-secondary/30 bg-secondary/5 flex items-start gap-3">
             <AlertCircle className="h-5 w-5 text-secondary mt-0.5 flex-shrink-0" />
             <div>
-              <p className="text-sm font-medium text-secondary mb-1">Credit Profile Required</p>
+              <p className="text-sm font-medium text-secondary mb-1">Approval Required</p>
               <p className="text-sm text-muted-foreground">
-                You must submit an encrypted credit profile before requesting loans. Click "Submit Credit Profile" above.
+                You need to approve the lending pool to use your cETH.{' '}
+                <Link to="/wrap" className="text-primary hover:underline">
+                  Go to Wrap page to approve
+                </Link>
               </p>
             </div>
           </div>
         )}
+
+        {/* Warning if no cETH */}
+        {!hasCethBalance && (
+          <div className="mb-6 p-4 rounded-lg border border-primary/30 bg-primary/5 flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-primary mb-1">Get Started with cETH</p>
+              <p className="text-sm text-muted-foreground">
+                You need cETH to use the private lending pool.{' '}
+                <Link to="/wrap" className="text-primary hover:underline">
+                  Wrap ETH to cETH first
+                </Link>
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Balance Cards */}
+        <div className="grid md:grid-cols-3 gap-6 mb-8">
+          <Card className="p-6 border-gradient card-glow">
+            <div className="flex items-center gap-3 mb-2">
+              <Shield className="h-5 w-5 text-primary" />
+              <p className="text-sm text-muted-foreground">cETH Balance</p>
+            </div>
+            {decryptedCethBalance !== null ? (
+              <p className="text-2xl font-bold">{parseFloat(decryptedCethBalance).toFixed(4)} cETH</p>
+            ) : hasCethBalance ? (
+              <div className="flex items-center gap-2">
+                <Lock className="h-5 w-5 text-muted-foreground" />
+                <span className="text-muted-foreground">Encrypted</span>
+              </div>
+            ) : (
+              <p className="text-2xl font-bold text-muted-foreground">0.0000 cETH</p>
+            )}
+          </Card>
+
+          <Card className="p-6 border-gradient card-glow">
+            <div className="flex items-center gap-3 mb-2">
+              <Shield className="h-5 w-5 text-green-500" />
+              <p className="text-sm text-muted-foreground">Your Collateral</p>
+            </div>
+            {decryptedCollateral !== null ? (
+              <p className="text-2xl font-bold text-green-500">{parseFloat(decryptedCollateral).toFixed(4)} cETH</p>
+            ) : hasCollateral ? (
+              <div className="flex items-center gap-2">
+                <Lock className="h-5 w-5 text-muted-foreground" />
+                <span className="text-muted-foreground">Encrypted</span>
+              </div>
+            ) : (
+              <p className="text-2xl font-bold text-muted-foreground">0.0000 cETH</p>
+            )}
+          </Card>
+
+          <Card className="p-6 border-gradient card-glow">
+            <div className="flex items-center gap-3 mb-2">
+              <TrendingUp className="h-5 w-5 text-destructive" />
+              <p className="text-sm text-muted-foreground">Your Debt</p>
+            </div>
+            {decryptedDebt !== null ? (
+              <p className="text-2xl font-bold text-destructive">{parseFloat(decryptedDebt).toFixed(4)} cETH</p>
+            ) : hasDebt ? (
+              <div className="flex items-center gap-2">
+                <Lock className="h-5 w-5 text-muted-foreground" />
+                <span className="text-muted-foreground">Encrypted</span>
+              </div>
+            ) : (
+              <p className="text-2xl font-bold text-muted-foreground">0.0000 cETH</p>
+            )}
+          </Card>
+        </div>
 
         {/* Main Grid */}
         <div className="grid md:grid-cols-2 gap-6">
@@ -452,7 +507,7 @@ const Borrow = () => {
 
             <div className="space-y-4">
               <div>
-                <Label htmlFor="collateral">Amount (ETH)</Label>
+                <Label htmlFor="collateral">Amount (cETH)</Label>
                 <Input
                   id="collateral"
                   type="number"
@@ -467,70 +522,70 @@ const Borrow = () => {
               <div className="flex gap-3">
                 <Button
                   onClick={handleDepositCollateral}
-                  disabled={isProcessing || isWaitingForReceipt || !collateralAmount}
+                  disabled={isProcessing || isWaitingForReceipt || !collateralAmount || !isPoolApproved}
                   className="flex-1"
                 >
-                  {isProcessing && txType === 'deposit' && isWaitingForReceipt ? 'Confirming...' : 'Deposit'}
+                  {isProcessing && txType === 'deposit' ? 'Processing...' : 'Deposit'}
                 </Button>
                 <Button
                   variant="outline"
                   onClick={handleWithdrawCollateral}
-                  disabled={isProcessing || isWaitingForReceipt || !collateralAmount}
+                  disabled={isProcessing || isWaitingForReceipt || !collateralAmount || !hasCollateral}
                   className="flex-1"
                 >
-                  {isProcessing && txType === 'withdraw' && isWaitingForReceipt ? 'Confirming...' : 'Withdraw'}
+                  {isProcessing && txType === 'withdraw' ? 'Processing...' : 'Withdraw'}
                 </Button>
               </div>
 
               <p className="text-xs text-muted-foreground">
-                200% collateralization required. Max borrow = 50% of collateral.
+                {collateralRatio}% collateralization required. Max borrow = {100 * 100 / collateralRatio}% of collateral.
               </p>
             </div>
           </Card>
 
-          {/* Loan Request */}
+          {/* Borrow */}
           <Card className="p-6 card-glow">
             <div className="flex items-center gap-2 mb-4">
               <TrendingUp className="h-5 w-5 text-primary" />
-              <h3 className="text-xl font-bold">Request Loan</h3>
+              <h3 className="text-xl font-bold">Borrow cETH</h3>
             </div>
 
             <div className="space-y-4">
               <div>
-                <Label htmlFor="loan">Amount (ETH)</Label>
+                <Label htmlFor="borrow">Amount (cETH)</Label>
                 <Input
-                  id="loan"
+                  id="borrow"
                   type="number"
                   step="0.001"
                   placeholder="0.00"
-                  value={loanAmount}
-                  onChange={(e) => setLoanAmount(e.target.value)}
-                  disabled={isProcessing || isPending || isConfirming || !hasProfile}
+                  value={borrowAmount}
+                  onChange={(e) => setBorrowAmount(e.target.value)}
+                  disabled={isProcessing || isWaitingForReceipt || !hasCollateral}
                 />
               </div>
 
               <Button
-                onClick={handleRequestLoan}
-                disabled={isProcessing || isPending || isConfirming || !hasProfile || !loanAmount}
+                onClick={handleBorrow}
+                disabled={isProcessing || isWaitingForReceipt || !borrowAmount || !hasCollateral}
                 className="w-full bg-gradient-to-r from-primary to-secondary"
               >
-                {isProcessing || isPending || isConfirming ? 'Processing...' : 'Request Loan'}
+                {isProcessing && txType === 'borrow' ? 'Processing...' : 'Borrow'}
               </Button>
 
               <p className="text-xs text-muted-foreground">
-                Loan requests are encrypted. Approval based on risk score ≤ 600.
+                Borrow amount is encrypted. Only you can see how much you borrowed.
               </p>
             </div>
           </Card>
 
-          {/* Repayment */}
-          {parseFloat(debt) > 0 && (
+          {/* Repay */}
+          {hasDebt && (
             <Card className="p-6 card-glow md:col-span-2">
               <h3 className="text-xl font-bold mb-4">Repay Loan</h3>
 
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="repay">Repayment Amount (ETH)</Label>
+                  <Label htmlFor="repay">Repayment Amount (cETH)</Label>
                   <Input
                     id="repay"
                     type="number"
@@ -545,10 +600,10 @@ const Borrow = () => {
                 <div className="flex items-end">
                   <Button
                     onClick={handleRepay}
-                    disabled={isProcessing || isWaitingForReceipt || !repayAmount}
+                    disabled={isProcessing || isWaitingForReceipt || !repayAmount || !isPoolApproved}
                     className="w-full"
                   >
-                    {isProcessing && txType === 'repay' && isWaitingForReceipt ? 'Confirming...' : 'Repay'}
+                    {isProcessing && txType === 'repay' ? 'Processing...' : 'Repay'}
                   </Button>
                 </div>
               </div>
@@ -558,14 +613,29 @@ const Borrow = () => {
 
         {/* Info Banner */}
         <div className="mt-8 p-6 rounded-xl border border-primary/30 bg-primary/5">
-          <h3 className="text-lg font-semibold mb-2 text-primary">🔐 How It Works</h3>
+          <h3 className="text-lg font-semibold mb-2 text-primary">Full Privacy with cETH</h3>
           <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
-            <li>Submit encrypted credit profile (risk score 0-1000, ≤600 for approval)</li>
-            <li>Deposit ETH collateral (200% of desired loan)</li>
-            <li>Request encrypted loan - approval computed on encrypted data</li>
-            <li>Claim approved loans - automatic disbursement</li>
-            <li>Repay anytime - reduce debt and free collateral</li>
+            <li><strong>All amounts are encrypted</strong> - collateral, borrow, and repay amounts are private</li>
+            <li>Only you can decrypt your balances using the "Decrypt Balances" button</li>
+            <li>{collateralRatio}% collateralization ratio - deposit {collateralRatio / 100}x your desired loan</li>
+            <li>Collateral checks are performed on encrypted values using FHE</li>
+            <li>Unwrap cETH to ETH when you want to exit with visible amounts</li>
           </ul>
+        </div>
+
+        {/* Contract Info */}
+        <div className="mt-4 p-4 rounded-lg border border-muted bg-muted/5">
+          <p className="text-xs text-muted-foreground">
+            <strong>Lending Pool:</strong>{' '}
+            <a
+              href={`https://sepolia.etherscan.io/address/${CONTRACTS.PrivateLendingPool}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary hover:underline"
+            >
+              {CONTRACTS.PrivateLendingPool}
+            </a>
+          </p>
         </div>
       </div>
     </div>
