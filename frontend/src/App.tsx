@@ -10,7 +10,8 @@ import { config } from './config/wagmi';
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import Supply from "./pages/Supply";
-import BorrowFHE from "./pages/BorrowFHE";
+import Borrow from "./pages/Borrow";
+import Wrap from "./pages/Wrap";
 import HowItWorks from "./pages/HowItWorks";
 import NotFound from "./pages/NotFound";
 
@@ -31,8 +32,9 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/wrap" element={<Wrap />} />
               <Route path="/supply" element={<Supply />} />
-              <Route path="/borrow" element={<BorrowFHE />} />
+              <Route path="/borrow" element={<Borrow />} />
               <Route path="/how-it-works" element={<HowItWorks />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />

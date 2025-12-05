@@ -1,11 +1,10 @@
-// Contract addresses from environment variables
+// V2 Contract addresses - Full Privacy with Confidential ETH (cETH)
 export const CONTRACTS = {
-  FHELendingWithDecrypt: import.meta.env.VITE_FHELENDING_ADDRESS as `0x${string}`,
-  CollateralManager: import.meta.env.VITE_COLLATERAL_MANAGER_ADDRESS as `0x${string}`,
-  LiquidityPool: import.meta.env.VITE_LIQUIDITY_POOL_ADDRESS as `0x${string}`,
+  ConfidentialETH: import.meta.env.VITE_CETH_ADDRESS as `0x${string}`,
+  PrivateLendingPool: import.meta.env.VITE_PRIVATE_LENDING_POOL_ADDRESS as `0x${string}`,
 } as const;
 
-// Legacy support (for backwards compatibility)
+// Legacy V1 contracts (for reference only - ETH amounts were visible)
 export const CONTRACT_ADDRESSES = {
   FHELending: import.meta.env.VITE_FHELENDING_ADDRESS as `0x${string}`,
   CollateralManager: import.meta.env.VITE_COLLATERAL_MANAGER_ADDRESS as `0x${string}`,
