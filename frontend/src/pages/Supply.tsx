@@ -6,8 +6,11 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { TrendingUp, Wallet, DollarSign } from 'lucide-react';
+import { ToastAction } from '@/components/ui/toast';
+import { TrendingUp, Wallet, DollarSign, ExternalLink } from 'lucide-react';
 import { useAccount } from 'wagmi';
+import { NETWORK_CONFIG } from '@/config/contracts';
+import { getExplorerTxUrl, formatTxHash } from '@/lib/utils';
 
 const Supply = () => {
   const { toast } = useToast();
@@ -24,6 +27,17 @@ const Supply = () => {
   const [supplyAmount, setSupplyAmount] = useState('');
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // Helper to create explorer action
+  const createExplorerAction = (hash: string) => (
+    <ToastAction
+      altText="View on Explorer"
+      onClick={() => window.open(getExplorerTxUrl(hash, NETWORK_CONFIG.chainId), '_blank')}
+    >
+      <ExternalLink className="h-3 w-3 mr-1" />
+      View
+    </ToastAction>
+  );
 
   useEffect(() => {
     if (address) {
@@ -43,11 +57,19 @@ const Supply = () => {
 
     try {
       setIsProcessing(true);
-      await addLiquidity(supplyAmount);
+      const txHash = await addLiquidity(supplyAmount);
 
       toast({
+        title: 'Transaction Submitted',
+        description: `Supplying ${supplyAmount} ETH. Tx: ${formatTxHash(txHash)}`,
+        action: createExplorerAction(txHash),
+      });
+
+      // Wait for confirmation
+      toast({
         title: 'Liquidity Added',
-        description: `Successfully supplied ${supplyAmount} ETH to the pool`,
+        description: `Successfully supplied ${supplyAmount} ETH. Tx: ${formatTxHash(txHash)}`,
+        action: createExplorerAction(txHash),
       });
 
       setSupplyAmount('');
@@ -75,11 +97,18 @@ const Supply = () => {
 
     try {
       setIsProcessing(true);
-      await removeLiquidity(withdrawAmount);
+      const txHash = await removeLiquidity(withdrawAmount);
+
+      toast({
+        title: 'Transaction Submitted',
+        description: `Withdrawing ${withdrawAmount} ETH. Tx: ${formatTxHash(txHash)}`,
+        action: createExplorerAction(txHash),
+      });
 
       toast({
         title: 'Liquidity Removed',
-        description: `Successfully withdrawn ${withdrawAmount} ETH from the pool`,
+        description: `Successfully withdrawn ${withdrawAmount} ETH. Tx: ${formatTxHash(txHash)}`,
+        action: createExplorerAction(txHash),
       });
 
       setWithdrawAmount('');

@@ -6,8 +6,11 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { AlertCircle, TrendingUp, Shield, Wallet, Lock, Unlock } from 'lucide-react';
+import { ToastAction } from '@/components/ui/toast';
+import { AlertCircle, TrendingUp, Shield, Wallet, Lock, Unlock, ExternalLink } from 'lucide-react';
 import { useAccount } from 'wagmi';
+import { NETWORK_CONFIG } from '@/config/contracts';
+import { getExplorerTxUrl, formatTxHash } from '@/lib/utils';
 
 const BorrowFHE = () => {
   const { toast } = useToast();
@@ -26,6 +29,7 @@ const BorrowFHE = () => {
     claimBorrowedFunds,
     repay,
     decryptBorrowAmount,
+    txHash,
     isWriting,
     isConfirming,
     isConfirmed,
@@ -45,15 +49,27 @@ const BorrowFHE = () => {
   const borrowLimitUsed =
     parseFloat(collateral) > 0 ? (parseFloat(outstandingDebt) / parseFloat(maxBorrowable)) * 100 : 0;
 
+  // Helper to create explorer action
+  const createExplorerAction = (hash: string) => (
+    <ToastAction
+      altText="View on Explorer"
+      onClick={() => window.open(getExplorerTxUrl(hash, NETWORK_CONFIG.chainId), '_blank')}
+    >
+      <ExternalLink className="h-3 w-3 mr-1" />
+      View
+    </ToastAction>
+  );
+
   // Handle transaction confirmation
   useEffect(() => {
-    if (isConfirmed) {
+    if (isConfirmed && txHash) {
       toast({
         title: 'Transaction Confirmed',
-        description: 'Your transaction has been successfully confirmed on-chain.',
+        description: `Transaction confirmed on-chain. Tx: ${formatTxHash(txHash)}`,
+        action: createExplorerAction(txHash),
       });
     }
-  }, [isConfirmed]);
+  }, [isConfirmed, txHash]);
 
   // Handle errors
   useEffect(() => {
@@ -62,6 +78,7 @@ const BorrowFHE = () => {
         variant: 'destructive',
         title: 'Transaction Failed',
         description: writeError.message || 'An error occurred during the transaction.',
+        action: txHash ? createExplorerAction(txHash) : undefined,
       });
     }
   }, [writeError]);
