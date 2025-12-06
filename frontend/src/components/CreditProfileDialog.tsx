@@ -12,11 +12,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { useToast } from '@/hooks/use-toast';
+import { ToastAction } from '@/components/ui/toast';
 import { useFHELending } from '@/hooks/useFHELending';
 import { encryptUint16 } from '@/lib/fhe';
-import { CONTRACT_ADDRESSES } from '@/config/contracts';
+import { CONTRACT_ADDRESSES, NETWORK_CONFIG } from '@/config/contracts';
+import { getExplorerTxUrl, formatTxHash } from '@/lib/utils';
 import { useAccount, useWalletClient, useWaitForTransactionReceipt } from 'wagmi';
-import { Shield, AlertCircle } from 'lucide-react';
+import { Shield, AlertCircle, ExternalLink } from 'lucide-react';
 
 export function CreditProfileDialog() {
   const { toast } = useToast();
@@ -32,6 +34,17 @@ export function CreditProfileDialog() {
   const { isLoading: isWaitingForReceipt, isSuccess: isTxSuccess, isError: isTxError } = useWaitForTransactionReceipt({
     hash: txHash,
   });
+
+  // Helper to create explorer action
+  const createExplorerAction = (hash: string) => (
+    <ToastAction
+      altText="View on Explorer"
+      onClick={() => window.open(getExplorerTxUrl(hash, NETWORK_CONFIG.chainId), '_blank')}
+    >
+      <ExternalLink className="h-3 w-3 mr-1" />
+      View
+    </ToastAction>
+  );
 
   const handleSubmit = async () => {
     try {
@@ -58,7 +71,8 @@ export function CreditProfileDialog() {
 
       toast({
         title: 'Transaction Submitted',
-        description: 'Waiting for confirmation...',
+        description: `${hasProfile ? 'Updating' : 'Submitting'} profile. Tx: ${formatTxHash(hash)}`,
+        action: createExplorerAction(hash),
       });
 
       // Wait for the transaction to be confirmed
@@ -75,10 +89,11 @@ export function CreditProfileDialog() {
 
   // Handle transaction result
   useEffect(() => {
-    if (isTxSuccess && isSubmitting) {
+    if (isTxSuccess && isSubmitting && txHash) {
       toast({
         title: hasProfile ? 'Profile Updated Successfully' : 'Profile Submitted Successfully',
-        description: `Risk score ${riskScore} encrypted and ${hasProfile ? 'updated' : 'submitted'} on-chain`,
+        description: `Risk score ${riskScore} encrypted and confirmed. Tx: ${formatTxHash(txHash)}`,
+        action: createExplorerAction(txHash),
       });
       setIsSubmitting(false);
       setTxHash(undefined);
@@ -86,20 +101,21 @@ export function CreditProfileDialog() {
       // Refresh data to update hasProfile status
       refetchAll();
     }
-  }, [isTxSuccess, isSubmitting]);
+  }, [isTxSuccess, isSubmitting, txHash]);
 
   // Handle transaction error
   useEffect(() => {
-    if (isTxError && isSubmitting) {
+    if (isTxError && isSubmitting && txHash) {
       toast({
         title: 'Transaction Failed',
-        description: 'The transaction was reverted on-chain. Please check the contract requirements.',
+        description: `Transaction reverted on-chain. Tx: ${formatTxHash(txHash)}`,
         variant: 'destructive',
+        action: createExplorerAction(txHash),
       });
       setIsSubmitting(false);
       setTxHash(undefined);
     }
-  }, [isTxError, isSubmitting]);
+  }, [isTxError, isSubmitting, txHash]);
 
   const getRiskLevel = (score: number) => {
     if (score <= 300) return { label: 'Excellent', color: 'text-green-500' };
