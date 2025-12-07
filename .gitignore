@@ -29,6 +29,7 @@ Thumbs.db
 cache/
 artifacts/
 typechain-types/
+fhevmTemp/
 
 # Testing
 coverage/
@@ -37,3 +38,8 @@ coverage.json
 # Temporary files
 *.tmp
 *.temp
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.env.local
